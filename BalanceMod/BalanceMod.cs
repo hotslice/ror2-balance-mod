@@ -47,7 +47,7 @@ namespace BalanceMod
             ArtificerM1CoeffBuffEnabled = Config.Wrap(
                 "ArtificerM1CoeffBuff",
                 "ArtificerM1CoeffBuff",
-                "Enables or disables improved Artificer M1 proc coefficient.",
+                "Enables or disables improved Artificer M1 coefficients.",
                 true);
 
             Hooks.Hook();

@@ -43,7 +43,8 @@ namespace BalanceMod
         }
         #endregion
 
-        #region Artificer FireBolt (M1) Proc Coefficient improved to 0.4
+        #region Artificer FireBolt (M1) damageCoefficient 2.2 -> 1.0, procCoefficient 0.2 -> 1.0
+        public static bool didSetArtificerFireBoltDamageCoefficient = false;
         public static Lazy<GameObject> lazyFireBoltProjectilePrefab { get; } = new Lazy<GameObject>(() => (GameObject)(AccessTools.Field(AccessTools.TypeByName("EntityStates.Mage.Weapon.FireBolt"), "projectilePrefab").GetValue(null)));
         //public static Lazy<GameObject> lazyFireBoltProjectilePrefab { get; } = new Lazy<GameObject>(() => (GameObject)(Type.GetType("EntityStates.Mage.Weapon.FireBolt").GetField("projectilePrefab").GetValue(null)));
         public static Action<ProjectileController, FireProjectileInfo> orig_ProjectileManager_InitializeProjectile;
@@ -54,19 +55,30 @@ namespace BalanceMod
             {
                 return;
             }
+            On.EntityStates.Mage.Weapon.FireBolt.FireGauntlet += (orig, self) =>
+            {
+                if(!didSetArtificerFireBoltDamageCoefficient)
+                {
+                    didSetArtificerFireBoltDamageCoefficient = true;
+                    var damageCoeff = AccessTools.Field(AccessTools.TypeByName("EntityStates.Mage.Weapon.FireBolt"), "damageCoefficient").GetValue(null);
+                    Debug.Log($"Artificer M1 damage was {damageCoeff}, setting to 100%");
+                    AccessTools.Field(AccessTools.TypeByName("EntityStates.Mage.Weapon.FireBolt"), "damageCoefficient").SetValue(null, 1.0f);
+                }
+                orig(self);
+            };
             // Threw an exception with HookGen hook, Detour, and Hook. Only NativeDetour worked
             // This is fixed in future versions of MonoMod and will be updated soon to use a Hook
             IDetour h = new NativeDetour(typeof(ProjectileManager).GetMethod("InitializeProjectile", BindingFlags.Static | BindingFlags.NonPublic).GetNativeStart(),
                 typeof(Hooks).GetMethod("ProjectileManager_InitializeProjectilePrefix", BindingFlags.Static | BindingFlags.Public));
             orig_ProjectileManager_InitializeProjectile = h.GenerateTrampoline<Action<ProjectileController, FireProjectileInfo>>();
-            BalanceMod.Logger.LogInfo("Patched: Artificer M1 procCoefficient set to 0.4");
+            BalanceMod.Logger.LogInfo("Patched: Artificer M1 damageCoeff set to 1.0, procCoeff set to 1.0");
         }
         
         public static void ProjectileManager_InitializeProjectilePrefix(ProjectileController projectileController, FireProjectileInfo fireProjectileInfo)
         {
             if (fireProjectileInfo.projectilePrefab == lazyFireBoltProjectilePrefab.Value)
             {
-                projectileController.procCoefficient = 0.4f;
+                projectileController.procCoefficient = 1.0f;
             }
             orig_ProjectileManager_InitializeProjectile(projectileController, fireProjectileInfo);
         }

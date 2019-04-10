@@ -52,7 +52,7 @@ namespace RoR2
 			}
 			else
 			{
-                dotStack.damage = dotDef.damageCoefficient * damageThatProccedIt * damageMultiplier * 0.4f;
+                dotStack.damage = dotDef.damageCoefficient * damageThatProccedIt * damageMultiplier * 0.6f;
 			}
 
 			if (dotIndex == DotIndex.Helfire)
