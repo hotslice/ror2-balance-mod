@@ -70,12 +70,6 @@ namespace BalanceMod
                                 //BalanceMod.Logger.LogError($"Operand null {searchVal.operandType}");
                                 continue;
                             }
-                            //if (!TypeEqualFuncDict.TryGetValue(searchVal.operandType, out var equalityComparisonFunc))
-                            //{
-                            //    BalanceMod.Logger.LogError($"Did not find equality comparison func for type {searchVal.operandType}");
-                            //    match = false;
-                            //    break;
-                            //}
                             bool operandEquals = false;
                             try
                             {

@@ -16,7 +16,6 @@ namespace BalanceMod
 	{
 		public static void Hook()
         {
-            //HarmonyWrapper.PatchAll(typeof(Hooks));
             PatchArtificerBaseMoveSpeed();
             PatchArtificerFireboltCoefficient();
             PatchBlazingDoTDamage();
@@ -152,7 +151,6 @@ namespace BalanceMod
             }
             IL.RoR2.CharacterBody.RecalculateStats += (il) =>
             {
-                //DevUtilsMonoMod.GenerateToLogInstructionFilterCodeFromIndex(il.Body.Instructions.ToList(), 350, 100);
                 var IfBlueAffix_HalveMaxHealth_CodeBlock = new List<InstructionFilter>
                 {
                     new InstructionFilter(OpCodes.Ldarg_0, "null"),
@@ -187,7 +185,7 @@ namespace BalanceMod
                 }
                 var wakeOfVultures_halfHealthIndex = matchingLocations[0];
                 il.Body.Instructions.RemoveAt(wakeOfVultures_halfHealthIndex + 1); // remove the unnecessary BuffIndex parameter
-                il.Body.Instructions[wakeOfVultures_halfHealthIndex + 1] = Instruction.Create(OpCodes.Call,
+                il.Body.Instructions[wakeOfVultures_halfHealthIndex + 1] = Instruction.Create(OpCodes.Call, //call to custom func IsBlueElite() instead
                     il.Method.Module.ImportReference(typeof(Hooks).GetMethod("IsBlueElite")));
 
                 var IfBlueAffix_GainShield_CodeBlock = new List<InstructionFilter>
@@ -216,6 +214,8 @@ namespace BalanceMod
                     }
                     return;
                 }
+
+                //The next fix is injected in the middle of the found block. Commented lines indicate existing unmodified instructions
                 var wakeOfVultures_gainShieldIndex = matchingLocations[0];
                 var idx = wakeOfVultures_gainShieldIndex + 7;
                 var skipMulLabel = il.Body.Instructions[idx];
@@ -247,10 +247,6 @@ namespace BalanceMod
         public static bool IsBlueElite(CharacterBody self)
         {
             return self.HasBuff(BuffIndex.AffixBlue) && self.inventory.GetItemCount(ItemIndex.HeadHunter) == 0;
-            //if (instance.HasBuff(BuffIndex.AffixBlue) && instance.inventory.GetItemCount(ItemIndex.HeadHunter) == 0)
-            //{
-            //    health *= 0.5f;
-            //}
         }
         #endregion
 
