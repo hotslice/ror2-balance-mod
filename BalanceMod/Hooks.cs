@@ -9,6 +9,7 @@ using RoR2;
 using RoR2.Projectile;
 using System.Reflection;
 using UnityEngine;
+using MonoMod.Cil;
 
 namespace BalanceMod
 {
@@ -21,8 +22,30 @@ namespace BalanceMod
             PatchBlazingDoTDamage();
             PatchWakeOfVultures();
             PatchItemProcDamageScaling();
-
+            // PatchGestureOfTheDrowned();
         }
+
+        //public static void PatchGestureOfTheDrowned()
+        //{
+        //    On.RoR2.Inventory.FixedUpdate += (orig, self) =>
+        //    {
+        //        if (self.GetEquipmentSlotCount() > 0)
+        //        {
+        //            EquipmentState[] equipmentStates = ((EquipmentState[])AccessTools.Field(AccessTools.TypeByName("RoR2.Inventory"), "equipmentStateSlots").GetValue(self));
+        //            if (equipmentStates.Length > 0)
+        //            {
+        //                var equipmentState = equipmentStates[0];
+        //                Debug.Log($"charges {equipmentState.charges} finish {equipmentState.chargeFinishTime.isPositiveInfinity}");
+        //            }
+        //        }
+        //    };
+        //    //when you go from empty slot -> first equipment, charges = 1 and ispositiveinfinity = false
+        //    //On.RoR2.EquipmentSlot.FixedUpdate += (orig, self) =>
+        //    //{
+        //    //    Debug.Log("FixedUpdate");
+        //    //    orig(self);
+        //    //};
+        //}
 
         #region Artificer base move speed improved to 9
         public static void PatchArtificerBaseMoveSpeed()
@@ -45,7 +68,7 @@ namespace BalanceMod
 
         #region Artificer FireBolt (M1) damageCoefficient 2.2 -> 1.0, procCoefficient 0.2 -> 1.0
         public static bool didSetArtificerFireBoltDamageCoefficient = false;
-        public static Lazy<GameObject> lazyFireBoltProjectilePrefab { get; } = new Lazy<GameObject>(() => (GameObject)(AccessTools.Field(AccessTools.TypeByName("EntityStates.Mage.Weapon.FireBolt"), "projectilePrefab").GetValue(null)));
+        public static Lazy<GameObject> LazyFireBoltProjectilePrefab { get; } = new Lazy<GameObject>(() => (GameObject)(AccessTools.Field(AccessTools.TypeByName("EntityStates.Mage.Weapon.FireBolt"), "projectilePrefab").GetValue(null)));
         //public static Lazy<GameObject> lazyFireBoltProjectilePrefab { get; } = new Lazy<GameObject>(() => (GameObject)(Type.GetType("EntityStates.Mage.Weapon.FireBolt").GetField("projectilePrefab").GetValue(null)));
         public static Action<ProjectileController, FireProjectileInfo> orig_ProjectileManager_InitializeProjectile;
 
@@ -60,7 +83,7 @@ namespace BalanceMod
                 if(!didSetArtificerFireBoltDamageCoefficient)
                 {
                     didSetArtificerFireBoltDamageCoefficient = true;
-                    var damageCoeff = AccessTools.Field(AccessTools.TypeByName("EntityStates.Mage.Weapon.FireBolt"), "damageCoefficient").GetValue(null);
+                    var damageCoeff = (float)AccessTools.Field(AccessTools.TypeByName("EntityStates.Mage.Weapon.FireBolt"), "damageCoefficient").GetValue(null);
                     Debug.Log($"Artificer M1 damage was {damageCoeff}, setting to 100%");
                     AccessTools.Field(AccessTools.TypeByName("EntityStates.Mage.Weapon.FireBolt"), "damageCoefficient").SetValue(null, 1.0f);
                 }
@@ -76,7 +99,7 @@ namespace BalanceMod
         
         public static void ProjectileManager_InitializeProjectilePrefix(ProjectileController projectileController, FireProjectileInfo fireProjectileInfo)
         {
-            if (fireProjectileInfo.projectilePrefab == lazyFireBoltProjectilePrefab.Value)
+            if (fireProjectileInfo.projectilePrefab == LazyFireBoltProjectilePrefab.Value)
             {
                 projectileController.procCoefficient = 1.0f;
             }
@@ -93,21 +116,22 @@ namespace BalanceMod
             }
             IL.RoR2.GlobalEventManager.OnHitEnemy += (il) =>
             {
+                // DevUtilsMonoMod.GenerateToLogInstructionFilterCodeFromIndex(il.Body.Instructions.ToList(), 184, 23);
                 var igniteCodeBlock = new List<InstructionFilter>
                 {
                     new InstructionFilter(OpCodes.Ldc_I4_S, "System.SByte", "27"),
                     new InstructionFilter(OpCodes.Callvirt, "Mono.Cecil.MethodReference", "System.Boolean RoR2.CharacterBody::HasBuff(RoR2.BuffIndex)"),
-                    new InstructionFilter(OpCodes.Brtrue_S, "MonoMod.Utils.MMILLabel", "MonoMod.Utils.MMILLabel"),
+                    new InstructionFilter(OpCodes.Brtrue_S, "MonoMod.Cil.ILLabel", "MonoMod.Cil.ILLabel"),
                     new InstructionFilter(OpCodes.Ldc_I4_0, "null"),
-                    new InstructionFilter(OpCodes.Br_S, "MonoMod.Utils.MMILLabel", "MonoMod.Utils.MMILLabel"),
+                    new InstructionFilter(OpCodes.Br_S, "MonoMod.Cil.ILLabel", "MonoMod.Cil.ILLabel"),
                     new InstructionFilter(OpCodes.Ldc_I4_1, "null"),
                     new InstructionFilter(OpCodes.Ldc_I4_0, "null"),
-                    new InstructionFilter(OpCodes.Bgt_S, "MonoMod.Utils.MMILLabel", "MonoMod.Utils.MMILLabel"),
+                    new InstructionFilter(OpCodes.Bgt_S, "MonoMod.Cil.ILLabel", "MonoMod.Cil.ILLabel"),
                     new InstructionFilter(OpCodes.Ldarg_1, "null"),
                     new InstructionFilter(OpCodes.Ldfld, "Mono.Cecil.FieldReference", "RoR2.DamageType RoR2.DamageInfo::damageType"),
                     new InstructionFilter(OpCodes.Ldc_I4, "System.Int32", "128"),
                     new InstructionFilter(OpCodes.And, "null"),
-                    new InstructionFilter(OpCodes.Brfalse_S, "MonoMod.Utils.MMILLabel", "MonoMod.Utils.MMILLabel"),
+                    new InstructionFilter(OpCodes.Brfalse_S, "MonoMod.Cil.ILLabel", "MonoMod.Cil.ILLabel"),
                     new InstructionFilter(OpCodes.Ldarg_2, "null"),
                     new InstructionFilter(OpCodes.Ldarg_1, "null"),
                     new InstructionFilter(OpCodes.Ldfld, "Mono.Cecil.FieldReference", "UnityEngine.GameObject RoR2.DamageInfo::attacker"),
@@ -148,7 +172,7 @@ namespace BalanceMod
                     //Now overwrite the call
                     il.Body.Instructions[burnDmgFixInsertIdx + 2] = Instruction.Create(OpCodes.Call,
                         il.Method.Module.ImportReference(typeof(DotController).GetMethod("InflictDotModBurnDamageFix")));
-                    BalanceMod.Logger.Log(LogLevel.Info, $"Patched: BlazingDoTFix loaded @ line {burnDmgFixInsertIdx}.");
+                    BalanceMod.Logger.Log(LogLevel.Info, $"Patched: BlazingDoTFix loaded @ line {burnDmgFixStartIdx}.");
                 }
             };
         }
@@ -157,18 +181,20 @@ namespace BalanceMod
         #region Wake of Vultures Fix
         public static void PatchWakeOfVultures()
         {
-            if(!BalanceMod.WakeOfVulturesFixEnabled.Value)
+            if (!BalanceMod.WakeOfVulturesFixEnabled.Value)
             {
                 return;
             }
             IL.RoR2.CharacterBody.RecalculateStats += (il) =>
             {
+                // DevUtilsMonoMod.GenerateToLogInstructionFilterCodeFromIndex(il.Body.Instructions.ToList(), 256, 15);
+                // DevUtilsMonoMod.GenerateToLogInstructionFilterCodeFromIndex(il.Body.Instructions.ToList(), 358, 9);
                 var IfBlueAffix_HalveMaxHealth_CodeBlock = new List<InstructionFilter>
                 {
                     new InstructionFilter(OpCodes.Ldarg_0, "null"),
                     new InstructionFilter(OpCodes.Ldc_I4_S, "System.SByte", "28"),
                     new InstructionFilter(OpCodes.Callvirt, "Mono.Cecil.MethodReference", "System.Boolean RoR2.CharacterBody::HasBuff(RoR2.BuffIndex)"),
-                    new InstructionFilter(OpCodes.Brfalse_S, "MonoMod.Utils.MMILLabel", "MonoMod.Utils.MMILLabel"),
+                    new InstructionFilter(OpCodes.Brfalse_S, "MonoMod.Cil.ILLabel", "MonoMod.Cil.ILLabel"),
                     new InstructionFilter(OpCodes.Ldloc_S, "Mono.Cecil.Cil.VariableDefinition", "V_27"),
                     new InstructionFilter(OpCodes.Ldc_R4, "System.Single", "0.5"),
                     new InstructionFilter(OpCodes.Mul, "null"),
@@ -205,7 +231,7 @@ namespace BalanceMod
                     new InstructionFilter(OpCodes.Ldarg_0, "null"),
                     new InstructionFilter(OpCodes.Ldc_I4_S, "System.SByte", "28"),
                     new InstructionFilter(OpCodes.Callvirt, "Mono.Cecil.MethodReference", "System.Boolean RoR2.CharacterBody::HasBuff(RoR2.BuffIndex)"),
-                    new InstructionFilter(OpCodes.Brfalse_S, "MonoMod.Utils.MMILLabel", "MonoMod.Utils.MMILLabel"),
+                    new InstructionFilter(OpCodes.Brfalse_S, "MonoMod.Cil.ILLabel", "MonoMod.Cil.ILLabel"),
                     new InstructionFilter(OpCodes.Ldloc_S, "Mono.Cecil.Cil.VariableDefinition", "V_30"),
                     new InstructionFilter(OpCodes.Ldarg_0, "null"),
                     new InstructionFilter(OpCodes.Callvirt, "Mono.Cecil.MethodReference", "System.Single RoR2.CharacterBody::get_maxHealth()"),
@@ -239,7 +265,7 @@ namespace BalanceMod
                 // Ldarg_0
                 // Callvirt, "Mono.Cecil.MethodReference", "System.Single RoR2.CharacterBody::get_maxHealth()"
 
-                var c = il.At(idx);
+                var c = new ILCursor(il).Goto(idx);
                 c.Emit(OpCodes.Ldarg_0);
                 c.Emit(OpCodes.Call, il.Import(typeof(CharacterBody).GetMethod("get_inventory")));
                 c.Emit(OpCodes.Ldc_I4_S, (System.SByte)ItemIndex.HeadHunter);
