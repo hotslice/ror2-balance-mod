@@ -22,30 +22,161 @@ namespace BalanceMod
             PatchBlazingDoTDamage();
             PatchWakeOfVultures();
             PatchItemProcDamageScaling();
-            // PatchGestureOfTheDrowned();
+            PatchGestureOfTheDrowned();
         }
 
-        //public static void PatchGestureOfTheDrowned()
-        //{
-        //    On.RoR2.Inventory.FixedUpdate += (orig, self) =>
-        //    {
-        //        if (self.GetEquipmentSlotCount() > 0)
-        //        {
-        //            EquipmentState[] equipmentStates = ((EquipmentState[])AccessTools.Field(AccessTools.TypeByName("RoR2.Inventory"), "equipmentStateSlots").GetValue(self));
-        //            if (equipmentStates.Length > 0)
-        //            {
-        //                var equipmentState = equipmentStates[0];
-        //                Debug.Log($"charges {equipmentState.charges} finish {equipmentState.chargeFinishTime.isPositiveInfinity}");
-        //            }
-        //        }
-        //    };
-        //    //when you go from empty slot -> first equipment, charges = 1 and ispositiveinfinity = false
-        //    //On.RoR2.EquipmentSlot.FixedUpdate += (orig, self) =>
-        //    //{
-        //    //    Debug.Log("FixedUpdate");
-        //    //    orig(self);
-        //    //};
-        //}
+        public static void PatchGestureOfTheDrowned()
+        {
+            IL.RoR2.Inventory.SetEquipmentIndex += (il) =>
+            {
+                // DevUtilsMonoMod.GenerateToLogInstructionFilterCodeFromIndex(il.Body.Instructions.ToList(), 19);
+                var setNewEquipmentStateBlock = new List<InstructionFilter>()
+                {
+                    //new InstructionFilter(OpCodes.Bne_Un_S, "MonoMod.Cil.ILLabel", "MonoMod.Cil.ILLabel"), //this branches to 22
+                    //new InstructionFilter(OpCodes.Ldc_I4_1, "null"),
+                    //new InstructionFilter(OpCodes.Stloc_1, "null"),
+                    new InstructionFilter(OpCodes.Ldloca_S, "Mono.Cecil.Cil.VariableDefinition", "V_2"),
+                    new InstructionFilter(OpCodes.Ldarg_1, "null"),
+                    new InstructionFilter(OpCodes.Ldloc_0, "null"),
+                    new InstructionFilter(OpCodes.Ldfld, "Mono.Cecil.FieldReference", "RoR2.Run/FixedTimeStamp RoR2.EquipmentState::chargeFinishTime"),
+                    new InstructionFilter(OpCodes.Ldloc_1, "null"),
+                    new InstructionFilter(OpCodes.Call, "Mono.Cecil.MethodReference", "System.Void RoR2.EquipmentState::.ctor(RoR2.EquipmentIndex,RoR2.Run/FixedTimeStamp,System.Byte)"),
+                    new InstructionFilter(OpCodes.Ldarg_0, "null"),
+                    new InstructionFilter(OpCodes.Ldloc_2, "null"),
+                    new InstructionFilter(OpCodes.Ldarg_0, "null"),
+                    new InstructionFilter(OpCodes.Callvirt, "Mono.Cecil.MethodReference", "System.Byte RoR2.Inventory::get_activeEquipmentSlot()"),
+                    new InstructionFilter(OpCodes.Callvirt, "Mono.Cecil.MethodReference", "System.Void RoR2.Inventory::SetEquipment(RoR2.EquipmentState,System.UInt32)"),
+                    new InstructionFilter(OpCodes.Ret, "null"),
+                };
+                var matchingLocations = DevUtilsMonoMod.FindCodeBlockIndexes(il.Body.Instructions.ToList(), setNewEquipmentStateBlock);
+
+                if (matchingLocations.Count != 1)
+                {
+                    if (matchingLocations.Count == 0)
+                    {
+                        BalanceMod.Logger.LogError($"BlazingDoTFix not loaded - found no matches.");
+                    }
+                    if (matchingLocations.Count > 1)
+                    {
+                        BalanceMod.Logger.LogError($"BlazingDoTFix not loaded - found multiple matches. Line numbers follow:");
+                        BalanceMod.Logger.LogError(string.Join(", ", matchingLocations));
+                    }
+                }
+                else
+                {
+                    var chargeFinishTimeField = AccessTools.Field(typeof(RoR2.EquipmentState), "chargeFinishTime");
+                    var equipmentStateCtor = AccessTools.Constructor(typeof(RoR2.EquipmentState), new Type[]
+                    {
+                        typeof(EquipmentIndex),
+                        typeof(Run.FixedTimeStamp),
+                        typeof(byte)
+                    });
+                    var getActiveEquipmentSlotMethod = AccessTools.Method(typeof(RoR2.Inventory), "get_activeEquipmentSlot");
+                    var setEquipmentMethod = AccessTools.Method(typeof(RoR2.Inventory), "SetEquipment");
+
+                    var gestureStartIdx = matchingLocations[0]; // == 22
+                    var c = new ILCursor(il).Goto(gestureStartIdx);
+                    /*22*/c.Emit(OpCodes.Ldloc_0);
+                    c.GotoNext();
+                    c.IncomingLabels.First().Target = c.Previous;
+                    c.RemoveRange(8);
+                    /*23*/c.Emit(OpCodes.Ldfld, chargeFinishTimeField);
+                    /*24*/c.Emit(OpCodes.Stloc_2);
+                    /*25*/c.Emit(OpCodes.Ldloca_S, (byte)2);
+                    /*26*/c.Emit(OpCodes.Call, AccessTools.Method(typeof(RoR2.Run.FixedTimeStamp), "get_isNegativeInfinity"));
+                    /*27*///c.Emit(OpCodes.Brfalse_S); //come back later and set this jump label
+                    /*28*/c.Emit(OpCodes.Ldarg_0);
+                    /*29*/c.Emit(OpCodes.Ldarg_1);
+                    /*30*/c.Emit(OpCodes.Ldsfld, AccessTools.Field(typeof(RoR2.Run.FixedTimeStamp), "positiveInfinity"));
+                    /*31*/c.Emit(OpCodes.Ldloc_1);
+                    /*32*/c.Emit(OpCodes.Newobj, equipmentStateCtor);
+                    /*33*/c.Emit(OpCodes.Ldarg_0);
+                    /*34*/c.Emit(OpCodes.Call, getActiveEquipmentSlotMethod);
+                    /*35*/c.Emit(OpCodes.Call, setEquipmentMethod);
+                    /*36*/c.Emit(OpCodes.Ret);
+                    /*37*/c.Emit(OpCodes.Ldarg_0); var brkInst = c.Previous;
+                    /*38*/c.Emit(OpCodes.Ldarg_1);
+                    /*39*/c.Emit(OpCodes.Ldloc_0);
+                    /*40*/c.Emit(OpCodes.Ldfld, chargeFinishTimeField);
+                    /*41*/c.Emit(OpCodes.Ldloc_1);
+                    /*42*/c.Emit(OpCodes.Newobj, equipmentStateCtor);
+                    // c.Emit(OpCodes.Ldarg_0);
+                    // call Inventory.get_ActiveEquipmentSlot()
+                    // call Inventory.SetEquipment()
+                    // ret
+
+                    il.Body.Instructions.Insert(27, Instruction.Create(OpCodes.Brfalse_S, brkInst));
+                    il.Body.Variables[2].VariableType = il.Import(typeof(RoR2.Run.FixedTimeStamp));
+                    BalanceMod.Logger.LogInfo($"Patched: GestureOfTheDrowned loaded @ line {gestureStartIdx}.");
+                }
+            };
+
+            //bool ranOnce = false;
+            //bool ranTwice = false;
+            //On.RoR2.Inventory.UpdateEquipment += (orig, self) =>
+            //{
+            //    if(self.GetEquipmentSlotCount() > 0 && !ranTwice)
+            //    {
+            //        if(ranOnce)
+            //        {
+            //            ranTwice = true;
+            //        }
+            //        ranOnce = true;
+            //        var equip = self.GetEquipment(0);
+            //        //0 charges, isNegativeInfinity
+            //        Debug.Log($"{equip.charges} {equip.chargeFinishTime.isNegativeInfinity} {equip.chargeFinishTime.isPositiveInfinity}");
+
+            //        //when walking over
+            //        //first run, 1 isNegativeInfinity
+            //        //second run, 0 isPositiveInfinity
+
+            //        //when picking up with E
+            //        //first run, 0 isNegativeInfinity
+            //        //second run, 0 isNegativeInfinity
+            //    }
+            //    orig(self);
+            //};
+
+            //On.RoR2.Inventory.SetEquipmentIndex += (orig, self, index) =>
+            //{
+            //    var oldEquip = self.GetEquipment(0u);
+            //    //old charges 0
+            //    //chargeFinishTime isNegativeInfinity
+            //    Debug.Log($"{oldEquip.chargeFinishTime.isInfinity} {oldEquip.chargeFinishTime.isNegativeInfinity} {oldEquip.chargeFinishTime.isPositiveInfinity}");
+            //    orig(self, index);
+            //    var newEquip = self.GetEquipment(0u);
+            //    //new charges 1
+            //    //chargeFinishTime isNegativeInfinity
+            //    Debug.Log($"{newEquip.chargeFinishTime.isInfinity} {newEquip.chargeFinishTime.isNegativeInfinity} {newEquip.chargeFinishTime.isPositiveInfinity}");
+            //};
+
+            //stock was 1, this was called repeatedly
+            //On.RoR2.EquipmentSlot.Execute += (orig, self) =>
+            //{
+            //    Debug.Log($"this.stock: {self.stock}");
+            //    orig(self);
+            //};
+
+            //On.RoR2.Inventory.FixedUpdate += (orig, self) =>
+            //{
+            //    if (self.GetEquipmentSlotCount() > 0)
+            //    {
+            //        EquipmentState[] equipmentStates = ((EquipmentState[])AccessTools.Field(AccessTools.TypeByName("RoR2.Inventory"), "equipmentStateSlots").GetValue(self));
+            //        if (equipmentStates.Length > 0)
+            //        {
+            //            var equipmentState = equipmentStates[0];
+            //            Debug.Log($"charges {equipmentState.charges} finish {equipmentState.chargeFinishTime.ToString()} pos {equipmentState.chargeFinishTime.isPositiveInfinity} neg {equipmentState.chargeFinishTime.isNegativeInfinity}");
+            //        }
+            //    }
+            //    orig(self);
+            //};
+            //when you go from empty slot -> first equipment, charges = 1 and ispositiveinfinity = false
+            //On.RoR2.EquipmentSlot.FixedUpdate += (orig, self) =>
+            //{
+            //    Debug.Log("FixedUpdate");
+            //    orig(self);
+            //};
+        }
 
         #region Artificer base move speed improved to 9
         public static void PatchArtificerBaseMoveSpeed()
@@ -143,7 +274,7 @@ namespace BalanceMod
                     new InstructionFilter(OpCodes.Ldc_R4, "System.Single", "1"),
                     new InstructionFilter(OpCodes.Call, "Mono.Cecil.MethodReference", "System.Void RoR2.DotController::InflictDot(UnityEngine.GameObject,UnityEngine.GameObject,RoR2.DotController/DotIndex,System.Single,System.Single)"),
                 };
-                var matchingLocations = DevUtilsMonoMod.FindCodeBlockIndexes(il.Body.Instructions.ToList(), igniteCodeBlock, 184);
+                var matchingLocations = DevUtilsMonoMod.FindCodeBlockIndexes(il.Body.Instructions.ToList(), igniteCodeBlock); // 184
 
                 if (matchingLocations.Count != 1)
                 {

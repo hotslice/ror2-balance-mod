@@ -46,51 +46,50 @@ namespace BalanceMod
                             match = false;
                             break;
                         }
-                        if (searchVal.operandType != String.Empty)
+                        if (searchVal.operandType == String.Empty)
                         {
-                            if (searchVal.operandType == "null")
-                            {
-                                if (inputVal.Operand != null)
-                                {
-                                    //BalanceMod.Logger.LogError($"Operand not null {searchVal.operandType}");
-                                    match = false;
-                                    break;
-                                }
-                                else continue;
-
-                            }
-                            if (searchVal.operandType != GetType(inputVal.Operand))
-                            {
-                                //BalanceMod.Logger.LogError($"Operand type did not match {searchVal.operandType}");
-                                match = false;
-                                break;
-                            }
-                            if (searchVal.value == null)
-                            {
-                                //BalanceMod.Logger.LogError($"Operand null {searchVal.operandType}");
-                                continue;
-                            }
-                            bool operandEquals = false;
-                            try
-                            {
-                                operandEquals = GetEqualityComparisonFunc(searchVal.operandType)(searchVal.value, inputVal.Operand);
-                            }
-                            catch
-                            {
-                                BalanceMod.Logger.LogError($"Equality comparer for type {searchVal.operandType} threw exception");
-                            }
-                            if (!operandEquals)
-                            {
-                                //BalanceMod.Logger.LogError($"Did not match {searchVal.value} == {inputVal.Operand} at line {inputIndex} | {searchIndex}");
-                                match = false;
-                                break;
-                            }
-                            else
-                            {
-                                //BalanceMod.Logger.LogError($"Matched {searchVal.value} == {inputVal.Operand}");
-                            }
+                            continue;
                         }
-
+                        if (searchVal.operandType == "null")
+                        {
+                            if (inputVal.Operand != null)
+                            {
+                                //BalanceMod.Logger.LogError($"Operand not null {searchVal.operandType}");
+                                match = false;
+                                break;
+                            }
+                            else continue;
+                        }
+                        if (searchVal.operandType != GetType(inputVal.Operand))
+                        {
+                            //BalanceMod.Logger.LogError($"Operand type did not match {searchVal.operandType}");
+                            match = false;
+                            break;
+                        }
+                        if (searchVal.value == null)
+                        {
+                            //BalanceMod.Logger.LogError($"Operand null {searchVal.operandType}");
+                            continue;
+                        }
+                        bool operandEquals = false;
+                        try
+                        {
+                            operandEquals = GetEqualityComparisonFunc(searchVal.operandType)(searchVal.value, inputVal.Operand);
+                        }
+                        catch
+                        {
+                            BalanceMod.Logger.LogError($"Equality comparer for type {searchVal.operandType} threw exception");
+                        }
+                        if (!operandEquals)
+                        {
+                            //BalanceMod.Logger.LogError($"Did not match {searchVal.value} == {inputVal.Operand} at line {inputIndex} | {searchIndex}");
+                            match = false;
+                            break;
+                        }
+                        else
+                        {
+                            //BalanceMod.Logger.LogError($"Matched {searchVal.value} == {inputVal.Operand}");
+                        }
                     }
                     if (match)
                     {
