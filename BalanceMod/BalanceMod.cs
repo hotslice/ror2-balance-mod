@@ -10,6 +10,7 @@ namespace BalanceMod
 
         public static ConfigWrapper<bool> BlazingDoTFixEnabled { get; set; }
         public static ConfigWrapper<bool> WakeOfVulturesFixEnabled { get; set; }
+        public static ConfigWrapper<bool> GestureOfTheDrownedFixEnabled { get; set; }
         public static ConfigWrapper<bool> ItemBalanceEnabled { get; set; }
         public static ConfigWrapper<bool> ArtificerMoveSpeedBuffEnabled { get; set; }
         public static ConfigWrapper<bool> ArtificerM1CoeffBuffEnabled { get; set; }
@@ -30,6 +31,12 @@ namespace BalanceMod
                 "WakeOfVulturesFix",
                 "WakeOfVulturesFix",
                 "Enables or disables Wake of Vultures hp -> shield fix.",
+                true);
+
+            GestureOfTheDrownedFixEnabled = Config.Wrap(
+                "GestureOfTheDrownedFix",
+                "GestureOfTheDrownedFix",
+                "Enables or disables Gesture of the Drowned infinite equip spam bug fix.",
                 true);
 
             ItemBalanceEnabled = Config.Wrap(

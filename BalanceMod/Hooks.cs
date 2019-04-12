@@ -25,8 +25,13 @@ namespace BalanceMod
             PatchGestureOfTheDrowned();
         }
 
+        #region Gesture of the Drowned infinite spam bug fix
         public static void PatchGestureOfTheDrowned()
         {
+            if(!BalanceMod.GestureOfTheDrownedFixEnabled.Value)
+            {
+                return;
+            }
             IL.RoR2.Inventory.SetEquipmentIndex += (il) =>
             {
                 // DevUtilsMonoMod.GenerateToLogInstructionFilterCodeFromIndex(il.Body.Instructions.ToList(), 19);
@@ -54,11 +59,11 @@ namespace BalanceMod
                 {
                     if (matchingLocations.Count == 0)
                     {
-                        BalanceMod.Logger.LogError($"BlazingDoTFix not loaded - found no matches.");
+                        BalanceMod.Logger.LogError($"GestureOfTheDrownedFix not loaded - found no matches.");
                     }
                     if (matchingLocations.Count > 1)
                     {
-                        BalanceMod.Logger.LogError($"BlazingDoTFix not loaded - found multiple matches. Line numbers follow:");
+                        BalanceMod.Logger.LogError($"GestureOfTheDrownedFix not loaded - found multiple matches. Line numbers follow:");
                         BalanceMod.Logger.LogError(string.Join(", ", matchingLocations));
                     }
                 }
@@ -107,10 +112,11 @@ namespace BalanceMod
 
                     il.Body.Instructions.Insert(27, Instruction.Create(OpCodes.Brfalse_S, brkInst));
                     il.Body.Variables[2].VariableType = il.Import(typeof(RoR2.Run.FixedTimeStamp));
-                    BalanceMod.Logger.LogInfo($"Patched: GestureOfTheDrowned loaded @ line {gestureStartIdx}.");
+                    BalanceMod.Logger.LogInfo($"Patched: GestureOfTheDrownedFix loaded @ line {gestureStartIdx}.");
                 }
             };
 
+            /* Following is debug output used to diagnose where the bug was coming from */
             //bool ranOnce = false;
             //bool ranTwice = false;
             //On.RoR2.Inventory.UpdateEquipment += (orig, self) =>
@@ -177,6 +183,7 @@ namespace BalanceMod
             //    orig(self);
             //};
         }
+        #endregion
 
         #region Artificer base move speed improved to 9
         public static void PatchArtificerBaseMoveSpeed()
