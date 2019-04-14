@@ -4,7 +4,7 @@ using BepInEx.Logging;
 
 namespace BalanceMod
 {
-	[BepInPlugin("com.hotslice.balancemod", "BalanceMod", "2.1.0")]
+	[BepInPlugin("com.hotslice.balancemod", "BalanceMod", "2.2.0")]
 	public class BalanceMod : BaseUnityPlugin
 	{
 
