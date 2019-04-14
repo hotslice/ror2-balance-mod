@@ -2,6 +2,7 @@
 using RoR2;
 using UnityEngine;
 using UnityEngine.Networking;
+#pragma warning disable IDE1006 // Naming Styles
 
 namespace RoR2
 {

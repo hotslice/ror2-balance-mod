@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using BepInEx.Logging;
 using Harmony;
 using Mono.Cecil.Cil;
@@ -9,6 +10,7 @@ using RoR2;
 using RoR2.Projectile;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.Networking;
 using MonoMod.Cil;
 
 namespace BalanceMod
@@ -23,7 +25,166 @@ namespace BalanceMod
             PatchWakeOfVultures();
             PatchItemProcDamageScaling();
             PatchGestureOfTheDrowned();
+            PatchLateGameMonsterSpawns();
         }
+
+        #region Patch late game monster spawns
+        public class MobItemInfo
+        {
+            public ItemIndex itemIndex;
+            public int itemCount;
+            public MobItemInfo(ItemIndex index, int count)
+            {
+                itemIndex = index;
+                itemCount = count;
+            }
+        }
+
+        public static WeightedSelection<MobItemInfo> mobItemSelection;
+        public static void InitializeMobItemSelection()
+        {
+            mobItemSelection = new WeightedSelection<MobItemInfo>();
+            //White
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.Syringe, 5), 1f);
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.Bear, 3), 1f);
+            //Tooth - does nothing
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.CritGlasses, 2), 1f);
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.Hoof, 7), 1f);
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.Crowbar, 1), 1f);
+            //Mushroom - does nothing
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.BleedOnHit, 2), 1f);
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.WardOnLevel, 10), 1f); // buffs the mobs only :D
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.HealWhileSafe, 1), 1f);
+            //PersonalShield - not sure how to get an appropriate number of these
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.Medkit, 1000), 1f);
+            //IgniteOnKill - does nothing
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.StunChanceOnHit, 1), 1f); // this is gonna make people mad
+            //Firework - does nothing
+            //SprintBonus - does nothing
+            //SecondarySkillMagazine - probably does nothing
+            //StickyBomb - too scary
+            //TreasureCache - does nothing
+            //BossDamageBonus - does nothing
+
+            //Green
+            //Missile - too scary
+            //ExplodeOnDeath - does nothing
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.Feather, 2), 1f);
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.ChainLightning, 1), 1f);
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.Seed, 10000), 1f); // maybe not enough
+            //AttackSpeedOnCrit - does nothing
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.SprintOutOfCombat, 3), 1f);
+            //FallBoots - does nothing
+            //CooldownOnCrit - does nothing
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.Phasing, 1), 1f);
+            //HealOnCrit - does nothing
+            //TempestOnKill - does nothing
+            //EquipmentMagazine - does nothing
+            //Infusion - does nothing
+            //Bandolier - does nothing
+            //WarCryOnMultiKill - does nothing
+            //SprintArmor - does nothing
+            //IceRing - too scary
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.FireRing, 1), 1f); //should be ok as players can run out of the aoe
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.SlowOnHit, 1), 1f);
+            //JumpBoost - does nothing
+
+            //Red
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.Behemoth, 1), 1f);
+            //Dagger - does nothing
+            //Icicle - does nothing
+            //GhostOnKill - does nothing
+            //NovaOnHeal - N'kuhana's Opinion, either does nothing or too scary
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.ShockNearby, 1), 1f);
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.Clover, 1), 1f);
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.BounceNearby, 5), 1f);
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.AlienHead, 1), 1f);
+            //Talisman - does nothing
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.ExtraLife, 1), 1f); //lul
+            //ExtraLifeConsumed - does nothing
+            //UtilitySkillMagazine - does nothing
+            //HeadHunter - does nothing
+            //KillEliteFrenzy - does nothing
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.IncreaseHealing, 1), 1f);
+
+            //Blue
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.LunarDagger, 1), 1f); //shaped glass
+            //GoldOnHit - does nothing
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.ShieldOnly, 1), 1f);
+            //new MobItemInfo(ItemIndex.CritHeal, 1), 1); //not actually corpsebloom
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.RepeatHeal, 1), 1f); //corpsebloom
+            //AutoCastEquipment - hmm, might add equipment later
+
+            //Other
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.BoostHp, 10), 1f); //boring
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.BoostDamage, 10), 1f); //zzz
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.Knurl, 10), 1f); //might not be enough
+            //BeetleGland - meh
+            mobItemSelection.AddChoice(new MobItemInfo(ItemIndex.BurnNearby, 1), 1f); //RIGHTEOUS FIYAH
+            //HealthDecay - no
+            //DrizzlePlayerHelper - idk
+
+            //Not implemented
+            //AACannon, PlasmaCore, LevelBonus, MageAttunement, WarCryOnCombat, CrippleWardOnLevel, Ghost
+        }
+
+        public static bool PatchLateGameMonsterSpawns_Activated = false;
+        public static float PatchLateGameMonsterSpawns_BeginCreditThreshold = 15000f; //set to 0f to begin at start of game
+        public static bool PatchLateGameMonsterSpawns_EnemyItemsInChat = false;
+        public static void PatchLateGameMonsterSpawns()
+        {
+            if(!BalanceMod.LateGameEnemyItemsEnabled.Value)
+            {
+                return;
+            }
+            //PatchLateGameMonsterSpawns_BeginCreditThreshold = BalanceMod.LateGameEnemyItemsActivationThreshold.Value;
+            PatchLateGameMonsterSpawns_EnemyItemsInChat = BalanceMod.EnemyItemsInChatEnabled.Value;
+            InitializeMobItemSelection();
+            On.RoR2.Run.Start += (orig, self) =>
+            {
+                PatchLateGameMonsterSpawns_Activated = false;
+                orig(self);
+            };
+
+            IL.RoR2.CombatDirector.AttemptSpawnOnTarget += (il) =>
+            {
+                var c = new ILCursor(il).GotoNext(x => x.MatchStloc(0));
+                //c.GotoNext();
+                //c.Emit(OpCodes.Ldc_I4_1);
+                //c.Emit(OpCodes.Stloc_0); //set canBeElite to true - uncomment these to force allow elite worms
+                c.GotoNext(x => x.MatchStloc(1));
+                c.GotoNext();
+
+                c.Emit(OpCodes.Ldarg_0); //load self onto the stack
+                c.EmitDelegate<Func<CombatDirector, bool>>((self) =>
+                {
+                    if (PatchLateGameMonsterSpawns_Activated)
+                        return true;
+                    if(self.monsterCredit >= PatchLateGameMonsterSpawns_BeginCreditThreshold)
+                    {
+                        // Debug.Log("Monsters can now start spawning with items.");
+                        Chat.AddMessage("Monsters can now start spawning with items.");
+                        PatchLateGameMonsterSpawns_Activated = true;
+                        return true;
+                    }
+                    return false;
+                });
+                c.Emit(OpCodes.Brfalse_S, c.Next); //jump to normal behavior
+
+                c.Emit(OpCodes.Ldarg_0); //load self onto the stack
+                c.Emit(OpCodes.Ldarg_1); //load spawnTarget onto the stack
+                c.Emit(OpCodes.Ldloc_0); //load canBeElite onto the stack
+                c.Emit(OpCodes.Call, il.Method.Module.ImportReference(typeof(CombatDirector).GetMethod("AlternateSpawnBehavior")));
+                c.Emit(OpCodes.Ret); //return result of delegate
+            };
+            
+            BalanceMod.Logger.LogInfo("Patched: Enemies can spawn with items in long games.");
+            if(PatchLateGameMonsterSpawns_EnemyItemsInChat)
+            {
+                BalanceMod.Logger.LogInfo("         Enemy items will appear in chat.");
+            }
+        }
+        #endregion
 
         #region Gesture of the Drowned infinite spam bug fix
         public static void PatchGestureOfTheDrowned()
@@ -205,9 +366,7 @@ namespace BalanceMod
         #endregion
 
         #region Artificer FireBolt (M1) damageCoefficient 2.2 -> 1.0, procCoefficient 0.2 -> 1.0
-        public static bool didSetArtificerFireBoltDamageCoefficient = false;
         public static Lazy<GameObject> LazyFireBoltProjectilePrefab { get; } = new Lazy<GameObject>(() => (GameObject)(AccessTools.Field(AccessTools.TypeByName("EntityStates.Mage.Weapon.FireBolt"), "projectilePrefab").GetValue(null)));
-        //public static Lazy<GameObject> lazyFireBoltProjectilePrefab { get; } = new Lazy<GameObject>(() => (GameObject)(Type.GetType("EntityStates.Mage.Weapon.FireBolt").GetField("projectilePrefab").GetValue(null)));
         public static Action<ProjectileController, FireProjectileInfo> orig_ProjectileManager_InitializeProjectile;
 
         public static void PatchArtificerFireboltCoefficient()
@@ -216,15 +375,11 @@ namespace BalanceMod
             {
                 return;
             }
-            On.EntityStates.Mage.Weapon.FireBolt.FireGauntlet += (orig, self) =>
+            On.RoR2.Run.Start += (orig, self) =>
             {
-                if(!didSetArtificerFireBoltDamageCoefficient)
-                {
-                    didSetArtificerFireBoltDamageCoefficient = true;
-                    var damageCoeff = (float)AccessTools.Field(AccessTools.TypeByName("EntityStates.Mage.Weapon.FireBolt"), "damageCoefficient").GetValue(null);
-                    Debug.Log($"Artificer M1 damage was {damageCoeff}, setting to 100%");
-                    AccessTools.Field(AccessTools.TypeByName("EntityStates.Mage.Weapon.FireBolt"), "damageCoefficient").SetValue(null, 1.0f);
-                }
+                var damageCoeff = (float)AccessTools.Field(AccessTools.TypeByName("EntityStates.Mage.Weapon.FireBolt"), "damageCoefficient").GetValue(null);
+                //Debug.Log($"Artificer M1 damage was {damageCoeff}, setting to 100%");
+                AccessTools.Field(AccessTools.TypeByName("EntityStates.Mage.Weapon.FireBolt"), "damageCoefficient").SetValue(null, 1.0f);
                 orig(self);
             };
             // Threw an exception with HookGen hook, Detour, and Hook. Only NativeDetour worked
@@ -439,6 +594,48 @@ namespace BalanceMod
                 return Mathf.Max(1f, damageThatProccedIt * damageCoefficient);
             };
             BalanceMod.Logger.LogInfo("Patched: Item damage scaling to 100%");
+        }
+        #endregion
+
+        #region Utility functions
+        public static Color32 GetItemColor(ItemIndex index)
+        {
+            if (IsWhiteItem(index))
+                return ColorCatalog.GetColor(ColorCatalog.ColorIndex.Tier1Item);
+            if (IsGreenItem(index))
+                return ColorCatalog.GetColor(ColorCatalog.ColorIndex.Tier2Item);
+            if (IsRedItem(index))
+                return ColorCatalog.GetColor(ColorCatalog.ColorIndex.Tier3Item);
+            if (IsLunarItem(index))
+                return ColorCatalog.GetColor(ColorCatalog.ColorIndex.LunarItem);
+            if (IsBossItem(index))
+                return ColorCatalog.GetColor(ColorCatalog.ColorIndex.BossItem);
+            return Color.white;
+        }
+
+        public static bool IsWhiteItem(ItemIndex index)
+        {
+            return ItemCatalog.tier1ItemList.Contains(index);
+        }
+
+        public static bool IsGreenItem(ItemIndex index)
+        {
+            return ItemCatalog.tier2ItemList.Contains(index);
+        }
+
+        public static bool IsRedItem(ItemIndex index)
+        {
+            return ItemCatalog.tier3ItemList.Contains(index);
+        }
+
+        public static bool IsBossItem(ItemIndex index)
+        {
+            return index == ItemIndex.Knurl || index == ItemIndex.BeetleGland;
+        }
+
+        public static bool IsLunarItem(ItemIndex index)
+        {
+            return ItemCatalog.lunarItemList.Contains(index);
         }
         #endregion
     }

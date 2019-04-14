@@ -9,6 +9,9 @@
     <PackageReference Include="MonoMod" Version="19.4.10.9" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\BalanceMod\BalanceMod.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <Reference Include="Assembly-CSharp">
       <HintPath>Assembly-CSharp.dll</HintPath>
     </Reference>
